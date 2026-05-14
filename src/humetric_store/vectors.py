@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import sqlite3
 from pathlib import Path
-from typing import Final
+from typing import Any, Final, cast
 
 import faiss
 import numpy as np
@@ -39,7 +39,9 @@ class VectorIndex:
         self._conn = conn
         self._dim = dim
         self._kind = kind
-        self._index: faiss.Index = faiss.IndexIDMap2(faiss.IndexFlatIP(dim))
+        # faiss is a SWIG binding; its real Python-level shape doesn't match the
+        # generated stubs ty sees. Pin the index as Any at this single boundary.
+        self._index: Any = faiss.IndexIDMap2(faiss.IndexFlatIP(dim))
 
     @property
     def dim(self) -> int:
@@ -126,15 +128,18 @@ class VectorIndex:
             return Err(FaissWriteFailed(path=str(path), reason=str(e)))
         return Ok(None)
 
-    @classmethod
-    def load(
-        cls, conn: sqlite3.Connection, path: str | Path, kind: str
-    ) -> Result[VectorIndex, StoreError]:
-        p = str(path)
-        try:
-            idx = faiss.read_index(p)
-        except RuntimeError as e:
-            return Err(FaissReadFailed(path=p, reason=str(e)))
-        out = cls(conn, dim=int(idx.d), kind=kind)
-        out._index = idx
-        return Ok(out)
+    def _replace_index(self, idx: Any) -> None:
+        self._index = idx
+
+
+def load_vector_index(
+    conn: sqlite3.Connection, path: str | Path, kind: str
+) -> Result[VectorIndex, StoreError]:
+    p = str(path)
+    try:
+        idx = cast(Any, faiss.read_index(p))
+    except RuntimeError as e:
+        return Err(FaissReadFailed(path=p, reason=str(e)))
+    out = VectorIndex(conn, dim=int(idx.d), kind=kind)
+    out._replace_index(idx)
+    return Ok(out)

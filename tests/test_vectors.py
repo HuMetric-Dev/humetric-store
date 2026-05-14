@@ -9,6 +9,7 @@ from humetric_core import Person
 from humetric_store import (
     VectorIndex,
     VectorShapeMismatch,
+    load_vector_index,
     open_db,
     upsert_person,
 )
@@ -70,7 +71,7 @@ def test_save_and_load_index() -> None:
     with tempfile.TemporaryDirectory() as d:
         p = Path(d) / "idx.faiss"
         idx.save(p).unwrap()
-        loaded = VectorIndex.load(conn, p, kind="text").unwrap()
+        loaded = load_vector_index(conn, p, kind="text").unwrap()
         assert loaded.size == 2
         results = loaded.search(np.array([1.0, 0.0, 0.0], dtype=np.float32), k=1).unwrap()
         assert results[0][0] == "a"

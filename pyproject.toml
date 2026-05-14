@@ -16,7 +16,7 @@ dependencies = [
 dev = [
     "pytest>=8",
     "ruff>=0.5",
-    "mypy>=1.10",
+    "ty>=0.0.35",
 ]
 
 [tool.uv.sources]
@@ -37,16 +37,8 @@ target-version = "py312"
 select = ["E", "W", "F", "I", "B", "UP", "RUF", "SIM", "TID"]
 ignore = ["E501"]
 
-[tool.mypy]
-python_version = "3.12"
-strict = true
-warn_unused_ignores = true
-warn_redundant_casts = true
-disallow_untyped_decorators = true
-
-[[tool.mypy.overrides]]
-module = ["faiss", "faiss.*"]
-ignore_missing_imports = true
+[tool.ty.environment]
+python-version = "3.12"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

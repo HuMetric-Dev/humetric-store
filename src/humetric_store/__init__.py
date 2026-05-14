@@ -19,7 +19,7 @@ from humetric_store.persons import (
     upsert_edge,
     upsert_person,
 )
-from humetric_store.vectors import VectorIndex
+from humetric_store.vectors import VectorIndex, load_vector_index
 
 __all__ = [
     "ConstraintViolated",
@@ -37,6 +37,7 @@ __all__ = [
     "get_person",
     "list_edges_from",
     "list_persons",
+    "load_vector_index",
     "open_db",
     "upsert_edge",
     "upsert_person",
