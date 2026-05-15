@@ -60,7 +60,12 @@ class VectorIndex:
             return Ok(0)
         for _pid, v in items:
             if v.shape != (self._dim,):
-                return Err(VectorShapeMismatch(expected_dim=self._dim, got_dim=int(v.shape[-1])))
+                return Err(
+                    VectorShapeMismatch(
+                        expected_shape=(self._dim,),
+                        got_shape=tuple(int(x) for x in v.shape),
+                    )
+                )
 
         ids = np.array([_stable_int64_id(pid) for pid, _ in items], dtype=np.int64)
         mat = np.stack([v.astype(_F32, copy=False) for _, v in items])
@@ -89,7 +94,12 @@ class VectorIndex:
 
     def search(self, query: np.ndarray, k: int) -> Result[list[tuple[str, float]], StoreError]:
         if query.shape != (self._dim,):
-            return Err(VectorShapeMismatch(expected_dim=self._dim, got_dim=int(query.shape[-1])))
+            return Err(
+                VectorShapeMismatch(
+                    expected_shape=(self._dim,),
+                    got_shape=tuple(int(x) for x in query.shape),
+                )
+            )
         if self._index.ntotal == 0:
             return Ok([])
 

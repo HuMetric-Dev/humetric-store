@@ -49,8 +49,8 @@ class FaissWriteFailed(HumetricError):
 
 @dataclass(frozen=True, slots=True)
 class VectorShapeMismatch(HumetricError):
-    expected_dim: int
-    got_dim: int
+    expected_shape: tuple[int, ...]
+    got_shape: tuple[int, ...]
 
 
 type StoreError = (
