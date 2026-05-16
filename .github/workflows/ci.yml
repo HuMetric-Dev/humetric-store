@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: humetric-store
+      - uses: actions/checkout@v4
+        with:
+          repository: HuMetric-Dev/humetric-core
+          path: humetric-core
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.7.3"
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Sync deps
+        run: uv sync --extra dev
+        working-directory: humetric-store
+      - name: Lint
+        run: uv run ruff check .
+        working-directory: humetric-store
+      - name: Format check
+        run: uv run ruff format --check .
+        working-directory: humetric-store
+      - name: Type check
+        run: uv run ty check src
+        working-directory: humetric-store
+      - name: Test
+        run: uv run pytest
+        working-directory: humetric-store
