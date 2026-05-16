@@ -18,6 +18,11 @@ dev = [
     "ruff>=0.5",
     "ty>=0.0.35",
 ]
+spike = [
+    "surrealdb>=1.0",
+    "psycopg[binary]>=3.2",
+    "pgvector>=0.3",
+]
 
 [tool.uv.sources]
 humetric-core = { path = "../humetric-core", editable = true }
