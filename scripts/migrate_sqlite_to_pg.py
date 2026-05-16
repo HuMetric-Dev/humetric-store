@@ -71,8 +71,7 @@ def _migrate_skills(
     skills = src.execute("SELECT name, normalized FROM skills").fetchall()
     with dst.cursor() as cur:
         cur.executemany(
-            "INSERT INTO skills (name, normalized) VALUES (%s, %s) "
-            "ON CONFLICT (name) DO NOTHING",
+            "INSERT INTO skills (name, normalized) VALUES (%s, %s) ON CONFLICT (name) DO NOTHING",
             [(r["name"], r["normalized"]) for r in skills],
         )
     dst.commit()
@@ -89,12 +88,8 @@ def _migrate_skills(
     return len(skills), len(ps_rows)
 
 
-def _migrate_edges(
-    src: sqlite3.Connection, dst: psycopg.Connection, batch: int
-) -> dict[str, int]:
-    edge_kinds = [
-        r["kind"] for r in src.execute("SELECT DISTINCT kind FROM edges").fetchall()
-    ]
+def _migrate_edges(src: sqlite3.Connection, dst: psycopg.Connection, batch: int) -> dict[str, int]:
+    edge_kinds = [r["kind"] for r in src.execute("SELECT DISTINCT kind FROM edges").fetchall()]
     counts: dict[str, int] = {}
     with dst.cursor() as cur:
         for kind in edge_kinds:
