@@ -57,6 +57,31 @@ def test_shape_mismatch_returns_err() -> None:
     assert isinstance(r.err(), VectorShapeMismatch)
 
 
+def test_search_does_not_rescan_vectors_table() -> None:
+    """The reverse FAISS-id -> person-id map must be cached in memory, not
+    rebuilt from SQLite on every search. We prove this by inserting items,
+    deleting every row in the `vectors` SQLite table, and confirming the
+    next `search` still resolves the same person ids."""
+    ids = ["a", "b", "c"]
+    conn = _conn_with_people(ids)
+    idx = VectorIndex(conn, dim=4, kind="text")
+    idx.add_batch(
+        [
+            ("a", np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)),
+            ("b", np.array([0.0, 1.0, 0.0, 0.0], dtype=np.float32)),
+            ("c", np.array([1.0, 1.0, 0.0, 0.0], dtype=np.float32)),
+        ]
+    ).unwrap()
+
+    with conn:
+        conn.execute("DELETE FROM vectors WHERE kind = ?", ("text",))
+
+    results = idx.search(np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32), k=2).unwrap()
+    top_pids = [pid for pid, _ in results]
+    assert top_pids[0] == "a"
+    assert "c" in top_pids
+
+
 def test_save_and_load_index() -> None:
     ids = ["a", "b"]
     conn = _conn_with_people(ids)

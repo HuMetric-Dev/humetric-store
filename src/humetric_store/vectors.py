@@ -18,6 +18,8 @@ from humetric_store.errors import (
     VectorShapeMismatch,
 )
 
+__all__ = ["VectorIndex", "load_vector_index"]
+
 _F32: Final = np.float32
 
 
@@ -33,7 +35,13 @@ def _stable_int64_id(person_id: str) -> int:
 class VectorIndex:
     """Cosine-similarity FAISS index over L2-normalized embeddings, keyed by
     a stable int64 hash of `person_id`. SQLite stores the reverse map plus
-    the raw vector (for joins) under (person_id, kind)."""
+    the raw vector (for joins) under (person_id, kind).
+
+    The FAISS-id -> person-id reverse map is kept in-memory and updated on
+    every `add_batch`, so `search` never has to scan the SQLite `vectors`
+    table. On `load_vector_index` we repopulate it once from SQLite — that
+    one-time scan is the price for not paying it on every query.
+    """
 
     def __init__(self, conn: sqlite3.Connection, dim: int, kind: str) -> None:
         self._conn = conn
@@ -42,6 +50,7 @@ class VectorIndex:
         # faiss is a SWIG binding; its real Python-level shape doesn't match the
         # generated stubs ty sees. Pin the index as Any at this single boundary.
         self._index: Any = faiss.IndexIDMap2(faiss.IndexFlatIP(dim))
+        self._reverse: dict[int, str] = {}
 
     @property
     def dim(self) -> int:
@@ -67,7 +76,8 @@ class VectorIndex:
                     )
                 )
 
-        ids = np.array([_stable_int64_id(pid) for pid, _ in items], dtype=np.int64)
+        raw_ids = [_stable_int64_id(pid) for pid, _ in items]
+        ids = np.array(raw_ids, dtype=np.int64)
         mat = np.stack([v.astype(_F32, copy=False) for _, v in items])
         norms = np.linalg.norm(mat, axis=1, keepdims=True)
         norms[norms == 0] = 1.0
@@ -89,6 +99,9 @@ class VectorIndex:
                 )
         except sqlite3.Error as e:
             return Err(DbWriteFailed(table="vectors", reason=str(e)))
+
+        for raw_id, (pid, _) in zip(raw_ids, items, strict=True):
+            self._reverse[raw_id] = pid
 
         return Ok(len(items))
 
@@ -114,19 +127,11 @@ class VectorIndex:
         except RuntimeError as e:
             return Err(FaissReadFailed(path="<memory>", reason=str(e)))
 
-        try:
-            rows = self._conn.execute(
-                "SELECT person_id FROM vectors WHERE kind = ?", (self._kind,)
-            ).fetchall()
-        except sqlite3.Error as e:
-            return Err(DbReadFailed(table="vectors", reason=str(e)))
-
-        reverse: dict[int, str] = {_stable_int64_id(r["person_id"]): r["person_id"] for r in rows}
         out: list[tuple[str, float]] = []
         for raw_id, score in zip(ids[0].tolist(), scores[0].tolist(), strict=True):
             if raw_id == -1:
                 continue
-            pid = reverse.get(int(raw_id))
+            pid = self._reverse.get(int(raw_id))
             if pid is not None:
                 out.append((pid, float(score)))
         return Ok(out)
@@ -152,4 +157,13 @@ def load_vector_index(
         return Err(FaissReadFailed(path=p, reason=str(e)))
     out = VectorIndex(conn, dim=int(idx.d), kind=kind)
     out._replace_index(idx)
+
+    # One-time scan of the SQLite reverse map. Amortized against the lifetime
+    # of the process; `search` then runs in pure-memory dict lookups.
+    try:
+        rows = conn.execute("SELECT person_id FROM vectors WHERE kind = ?", (kind,)).fetchall()
+    except sqlite3.Error as e:
+        return Err(DbReadFailed(table="vectors", reason=str(e)))
+    out._reverse = {_stable_int64_id(r["person_id"]): r["person_id"] for r in rows}
+
     return Ok(out)
