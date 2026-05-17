@@ -78,6 +78,41 @@ def test_load_vector_index_returns_view(pg_conn: psycopg.Connection) -> None:
     loaded = load_vector_index(pg_conn, "graph").unwrap()
     assert loaded.dim == VECTOR_DIMS["graph"]
     assert loaded.kind == "graph"
+    assert loaded.table == "persons"
     assert loaded.size == 2
     results = loaded.search(_onehot(VECTOR_DIMS["graph"], 0), k=1).unwrap()
     assert results[0][0] == "a"
+
+
+def test_vector_index_against_organizations_table(pg_conn: psycopg.Connection) -> None:
+    from humetric_core import Organization
+
+    from humetric_store import upsert_organization
+
+    dim = VECTOR_DIMS["graph"]
+    for oid in ("o:gh:a", "o:gh:b"):
+        upsert_organization(
+            pg_conn,
+            Organization(id=oid, source="github", name=oid, org_kind="company"),
+        ).unwrap()
+
+    idx = load_vector_index(pg_conn, "graph", table="organizations").unwrap()
+    idx.add_batch(
+        [
+            ("o:gh:a", _onehot(dim, 0)),
+            ("o:gh:b", _onehot(dim, 1)),
+        ]
+    ).unwrap()
+    assert idx.size == 2
+    results = idx.search(_onehot(dim, 0), k=1).unwrap()
+    assert results[0][0] == "o:gh:a"
+
+
+def test_load_vector_index_rejects_unknown_table(pg_conn: psycopg.Connection) -> None:
+    from humetric_store import NotFound
+
+    r = load_vector_index(pg_conn, "graph", table="bogus")
+    assert r.is_err()
+    err = r.err()
+    assert isinstance(err, NotFound)
+    assert err.kind == "entity_table"

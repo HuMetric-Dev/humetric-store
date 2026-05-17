@@ -1,4 +1,26 @@
-from humetric_store.db import open_db
+from humetric_store.auth import (
+    AuthCredential,
+    append_query_history,
+    delete_session,
+    delete_sessions_for_user,
+    find_user_claiming_person,
+    get_credential,
+    get_session_by_token_hash,
+    get_user_by_email,
+    get_user_by_id,
+    insert_credential,
+    insert_session,
+    insert_user,
+    recent_query_embeddings,
+    recent_query_history,
+    search_persons_by_github_username,
+    search_persons_by_name_lower,
+    search_persons_by_raw_url,
+    set_user_person_id,
+    touch_session,
+)
+from humetric_store.db import ENTITY_TABLES, VECTOR_DIMS, open_db
+from humetric_store.edges import list_edges_from, upsert_edge
 from humetric_store.errors import (
     ConstraintViolated,
     DbOpenFailed,
@@ -8,18 +30,26 @@ from humetric_store.errors import (
     StoreError,
     VectorShapeMismatch,
 )
+from humetric_store.organizations import (
+    bulk_upsert_organizations,
+    count_organizations,
+    get_organization,
+    list_organizations,
+    upsert_organization,
+)
 from humetric_store.persons import (
     bulk_upsert_persons,
     count_persons,
     get_person,
-    list_edges_from,
     list_persons,
-    upsert_edge,
     upsert_person,
 )
 from humetric_store.vectors import VectorIndex, load_vector_index
 
 __all__ = [
+    "ENTITY_TABLES",
+    "VECTOR_DIMS",
+    "AuthCredential",
     "ConstraintViolated",
     "DbOpenFailed",
     "DbReadFailed",
@@ -28,13 +58,36 @@ __all__ = [
     "StoreError",
     "VectorIndex",
     "VectorShapeMismatch",
+    "append_query_history",
+    "bulk_upsert_organizations",
     "bulk_upsert_persons",
+    "count_organizations",
     "count_persons",
+    "delete_session",
+    "delete_sessions_for_user",
+    "find_user_claiming_person",
+    "get_credential",
+    "get_organization",
     "get_person",
+    "get_session_by_token_hash",
+    "get_user_by_email",
+    "get_user_by_id",
+    "insert_credential",
+    "insert_session",
+    "insert_user",
     "list_edges_from",
+    "list_organizations",
     "list_persons",
     "load_vector_index",
     "open_db",
+    "recent_query_embeddings",
+    "recent_query_history",
+    "search_persons_by_github_username",
+    "search_persons_by_name_lower",
+    "search_persons_by_raw_url",
+    "set_user_person_id",
+    "touch_session",
     "upsert_edge",
+    "upsert_organization",
     "upsert_person",
 ]

@@ -1,13 +1,13 @@
 [project]
 name = "humetric-store"
-version = "0.2.0"
+version = "0.3.0"
 description = "PostgreSQL + pgvector persistence layer for the Humetric workspace"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Po-Hsuan Lai" }]
 dependencies = [
-    "humetric-core>=0.1,<0.2",
+    "humetric-core>=0.2,<0.3",
     "psycopg[binary]>=3.2,<4",
     "pgvector>=0.4,<1",
     "numpy>=1.26,<3",

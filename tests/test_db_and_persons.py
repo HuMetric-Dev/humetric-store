@@ -87,3 +87,47 @@ def test_edges_upsert_and_list(pg_conn: psycopg.Connection) -> None:
     assert len(edges) == 2
     weights = {(e.dst, e.weight) for e in edges}
     assert (("b", 0.7) in weights) and (("c", 0.5) in weights)
+
+
+def test_edges_derive_src_dst_type_from_prefixed_ids(pg_conn: psycopg.Connection) -> None:
+    upsert_edge(
+        pg_conn,
+        Edge(src="p:gh:octocat", dst="o:gh:anthropic", kind="works_at"),
+    ).unwrap()
+    upsert_edge(pg_conn, Edge(src="legacy_id", dst="other_legacy", kind="follow")).unwrap()
+
+    with pg_conn.cursor() as cur:
+        cur.execute(
+            "SELECT src, dst, src_type, dst_type FROM edges ORDER BY src",
+        )
+        rows = dict((r[0], (r[2], r[3])) for r in cur.fetchall())
+
+    assert rows["p:gh:octocat"] == ("person", "organization")
+    # Legacy unprefixed IDs do not parse, so the denormalized type columns are NULL.
+    assert rows["legacy_id"] == (None, None)
+
+
+def test_entities_view_unions_persons_and_organizations(pg_conn: psycopg.Connection) -> None:
+    from humetric_core import Organization
+
+    from humetric_store import upsert_organization
+
+    upsert_person(pg_conn, _make_person("p:gh:torvalds")).unwrap()
+    upsert_organization(
+        pg_conn,
+        Organization(
+            id="o:gh:anthropic",
+            source="github",
+            name="Anthropic",
+            org_kind="company",
+        ),
+    ).unwrap()
+
+    with pg_conn.cursor() as cur:
+        cur.execute("SELECT id, entity_type FROM entities ORDER BY id")
+        rows = cur.fetchall()
+
+    assert rows == [
+        ("o:gh:anthropic", "organization"),
+        ("p:gh:torvalds", "person"),
+    ]
